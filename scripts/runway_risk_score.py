@@ -29,6 +29,9 @@ from datetime import date, datetime
 
 DISTRESS_TYPES = {"layoff", "security_issue", "executive_change"}
 
+# Week 4: trailing activity window in days (recent window vs the window before it)
+RECENT_WINDOW_DAYS = 365
+
 # fields every signal must have to be usable at all (STEP 2 shape check)
 REQUIRED_FIELDS = ("signal_id", "company_id", "signal_type", "occurred_date", "source_url")
 
@@ -54,6 +57,16 @@ def parse_money(value):
 
 def months_between(d1, d2):
     return (d2.year - d1.year) * 12 + (d2.month - d1.month)
+
+
+def safe_date(value):
+    """Parse an ISO date; return None on anything malformed (fail safe, no crash)."""
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(value).date()
+    except (ValueError, TypeError):
+        return None
 
 
 def is_validated(sig):
@@ -109,9 +122,9 @@ def score(company_id, usable, dropped_unvalidated_count, today):
 
     # 2. months_since_last_raise
     raise_dates = [
-        (datetime.fromisoformat(s["occurred_date"]).date(), s)
+        (safe_date(s["occurred_date"]), s)
         for s in usable
-        if s.get("signal_type") == "funding_round" and s.get("occurred_date")
+        if s.get("signal_type") == "funding_round" and safe_date(s.get("occurred_date"))
     ]
     if raise_dates:
         last_dt, last_sig = max(raise_dates, key=lambda t: t[0])
@@ -131,8 +144,23 @@ def score(company_id, usable, dropped_unvalidated_count, today):
     distress_prov = [{"signal_id": s["signal_id"], "type": s["signal_type"], "title": s.get("signal_title"), "source_url": s["source_url"]} for s in distress]
 
     # 5. signal_freshness
-    dated = [datetime.fromisoformat(s["occurred_date"]).date() for s in usable if s.get("occurred_date")]
+    dated = [safe_date(s["occurred_date"]) for s in usable if safe_date(s.get("occurred_date"))]
     freshness_days = (today - max(dated)).days if dated else None
+
+    # Week 4: trailing-window activity + signal-velocity delta (mechanical, no verdict)
+    recent_cut = today.toordinal() - RECENT_WINDOW_DAYS
+    prior_cut = today.toordinal() - 2 * RECENT_WINDOW_DAYS
+    recent_count = prior_count = 0
+    for s in usable:
+        d = safe_date(s.get("occurred_date"))
+        if not d:
+            continue
+        o = d.toordinal()
+        if o > recent_cut:
+            recent_count += 1
+        elif o > prior_cut:
+            prior_count += 1
+    velocity_delta = recent_count - prior_count
 
     return {
         "company_id": company_id,
@@ -146,6 +174,10 @@ def score(company_id, usable, dropped_unvalidated_count, today):
             "funding_stage_trend": stages,
             "distress_indicator_count": len(distress),
             "signal_freshness_days": freshness_days,
+            "recent_window_days": RECENT_WINDOW_DAYS,
+            "signals_recent_window": recent_count,
+            "signals_prior_window": prior_count,
+            "signal_velocity_delta": velocity_delta,
         },
         "provenance": {
             "total_raised": raise_prov,
@@ -190,6 +222,12 @@ def render_brief(r):
 
     fr = m["signal_freshness_days"]
     L.append(f"5. Most recent validated signal: {str(fr)+' days ago' if fr is not None else 'UNKNOWN'}")
+
+    win = m["recent_window_days"]
+    L.append(f"6. Activity (last {win}d vs prior {win}d): {m['signals_recent_window']} vs {m['signals_prior_window']}")
+    vd = m["signal_velocity_delta"]
+    sign = "+" if vd > 0 else ""
+    L.append(f"7. Signal-velocity delta: {sign}{vd}   (positive = picking up, negative = going quiet)")
 
     L.append("")
     L.append("-" * 52)
