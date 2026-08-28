@@ -1,11 +1,11 @@
 ---
 recipe: runway-risk-scorer
-status: DRAFT
+status: SPECIFIED
 recipe_version: 0.1.0
 domain: company-intelligence / financial-signals
-last_gate: null
+last_gate: 2026-08-28
 attestation: null
-todos_open: 5
+todos_open: 2
 owner: amruta
 ---
 

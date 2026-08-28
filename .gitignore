@@ -5,3 +5,6 @@ __pycache__/
 reports/*.txt
 reports/*.json
 !reports/.gitkeep
+
+/youtube
+

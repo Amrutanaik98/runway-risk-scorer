@@ -9,3 +9,11 @@
   same briefs as Week 1 and the JSON carries full provenance. Adequate to mark SPECIFIED.
 - could NOT verify (solo): real-world accuracy of the signals, whether the 5 metrics
   match actual procurement needs, independent adequacy review.
+## 2026-08-28 — caught-up run (Rows 3-4 closed, Week 4 rigor added)
+- OVERLAP_CHECK.md written: no runway recipe exists in the 100 Mycroft recipes.
+- recipe bumped DRAFT -> SPECIFIED (step-split + JSON + logged run as evidence).
+- Week 4 metrics added: trailing-window activity + signal-velocity delta.
+- break tests: 7/7 pass. Caught a malformed-date crash; fixed with safe_date().
+- audit_freshness: 5 stale signals flagged, 1 unvalidated, 0 hard problems.
+- gate: acting-reviewer SOLO. Ready to advance to RUNNABLE-SAMPLE once Week 4 is committed.
+- could NOT verify (solo): real-world signal accuracy, independent review.
